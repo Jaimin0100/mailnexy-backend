@@ -46,6 +46,9 @@ type User struct {
 	StripeCustomerID    *string `gorm:"index" json:"stripe_customer_id,omitempty"`
 	StripePaymentMethod *string `json:"stripe_payment_method,omitempty"`
 	DefaultCurrency     string  `gorm:"default:'usd'" json:"default_currency"`
+	TokenVersion         uint       `gorm:"default:0" json:"-"`
+	ResetToken           *string    `gorm:"size:255"`
+	ResetTokenExpiresAt  *time.Time
 
 	// Relations
 	Senders            []Sender            `gorm:"foreignKey:UserID" json:"senders,omitempty"`
@@ -56,6 +59,18 @@ type User struct {
 	Transactions       []CreditTransaction `gorm:"foreignKey:UserID" json:"transactions,omitempty"`
 	APIKeys            []APIKey            `gorm:"foreignKey:UserID" json:"api_keys,omitempty"`
 }
+
+type RefreshToken struct {
+	gorm.Model
+	UserID     uint      `gorm:"index;not null"`
+	TokenHash  string    `gorm:"not null"`
+	SessionID  string    `gorm:"index;not null"`
+	UserAgent  string    `gorm:"size:512"`
+	IPAddress  string    `gorm:"size:45"` // Supports IPv6
+	ExpiresAt  time.Time `gorm:"not null"`
+	IsRevoked  bool      `gorm:"default:false;not null"`
+}
+
 
 // Plan represents available credit packages
 type Plan struct {
