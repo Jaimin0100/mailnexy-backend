@@ -72,11 +72,11 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
 
-	// Dashboard routes
-	dashboard := api.Group("/dashboard")
-	dashboard.Get("/stats", dashboardController.GetDashboardStats)
-	dashboard.Get("/metrics", dashboardController.GetEmailMetricsOverTime)
-	dashboard.Get("/recent-campaigns", dashboardController.GetRecentCampaigns)
+	// // Dashboard routes
+	// dashboard := api.Group("/dashboard")
+	// dashboard.Get("/stats", dashboardController.GetDashboardStats)
+	// dashboard.Get("/metrics", dashboardController.GetEmailMetricsOverTime)
+	// dashboard.Get("/recent-campaigns", dashboardController.GetRecentCampaigns)
 
 	// Sender routes with rate limiting
 	sender := api.Group("/senders", middleware.SenderRateLimiter())

@@ -18,6 +18,13 @@ var (
 	envLoaded bool
 )
 
+type RedisConfig struct {
+	Enabled  bool   `json:"enabled"`
+	Address  string `json:"address"`
+	Password string `json:"password"`
+	DB       int    `json:"db"`
+}
+
 type OAuthConfig struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -43,8 +50,9 @@ type Config struct {
 	StripePublishableKey string      `json:"stripe_publishable_key"`
 	StripeWebhookSecret  string      `json:"stripe_webhook_secret"`
 	WarmupEmail          string      `json:"warmup_email"`
+	RateLimitTestSender  int         `json:"rate_limit_test_sender"`
+	Redis                RedisConfig `json:"redis"`
 }
-
 func init() {
 	// Try to load .env file, but don't fail if it doesn't exist
 	_ = godotenv.Load()
