@@ -4,11 +4,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	controller "mailnexy/controllers"
 	"mailnexy/middleware"
 	"mailnexy/utils"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"gorm.io/gorm"
 )
 
@@ -65,18 +66,18 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	verificationController := controller.NewVerificationController(db, verifyLogger)
 	campaignController := controller.NewCampaignController(db, log.New(os.Stdout, "CAMPAIGN: ", log.LstdFlags))
 	leadController := controller.NewLeadController(db, log.New(os.Stdout, "LEAD: ", log.LstdFlags))
-	// dashboardController := controller.NewDashboardController(db, log.New(os.Stdout, "DASHBOARD: ", log.LstdFlags))
+	dashboardController := controller.NewDashboardController(db, log.New(os.Stdout, "DASHBOARD: ", log.LstdFlags))
 
 	// API group with versioning and protection
 	api := app.Group("/api/v1", middleware.Protected(), logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
 
-	// // Dashboard routes
-	// dashboard := api.Group("/dashboard")
-	// dashboard.Get("/stats", dashboardController.GetDashboardStats)
-	// dashboard.Get("/metrics", dashboardController.GetEmailMetricsOverTime)
-	// dashboard.Get("/recent-campaigns", dashboardController.GetRecentCampaigns)
+	// Dashboard routes
+	dashboard := api.Group("/dashboard")
+	dashboard.Get("/stats", dashboardController.GetDashboardStats)
+	dashboard.Get("/metrics", dashboardController.GetEmailMetricsOverTime)
+	dashboard.Get("/recent-campaigns", dashboardController.GetRecentCampaigns)
 
 	// Sender routes with rate limiting
 	sender := api.Group("/senders", middleware.SenderRateLimiter())
@@ -171,6 +172,3 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 		})
 	})
 }
-
-
-
