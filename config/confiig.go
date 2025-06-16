@@ -52,7 +52,13 @@ type Config struct {
 	WarmupEmail          string      `json:"warmup_email"`
 	RateLimitTestSender  int         `json:"rate_limit_test_sender"`
 	Redis                RedisConfig `json:"redis"`
+	SMTPHost             string      `json:"smtp_host"`
+	SMTPPort             string      `json:"smtp_port"`
+	SMTPUsername         string      `json:"smtp_username"`
+	SMTPPassword         string      `json:"smtp_password"`
+	FromEmail            string      `json:"from_email"`
 }
+
 func init() {
 	// Try to load .env file, but don't fail if it doesn't exist
 	_ = godotenv.Load()
@@ -140,10 +146,10 @@ func ConnectDB() error {
 		return fmt.Errorf("failed to get DB instance: %w", err)
 	}
 
-    sqlDB.SetMaxIdleConns(AppConfig.DBMaxIdleConns)
-    sqlDB.SetMaxOpenConns(AppConfig.DBMaxOpenConns)
-    sqlDB.SetConnMaxLifetime(time.Hour)
-    sqlDB.SetConnMaxIdleTime(30 * time.Minute)
+	sqlDB.SetMaxIdleConns(AppConfig.DBMaxIdleConns)
+	sqlDB.SetMaxOpenConns(AppConfig.DBMaxOpenConns)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(30 * time.Minute)
 
 	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("database ping failed: %w", err)
