@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.23.10
 
 require (
+	github.com/badoux/checkmail v1.2.4
 	github.com/emersion/go-imap v1.2.1
 	github.com/getsentry/sentry-go v0.33.0
 	github.com/go-playground/validator/v10 v10.26.0
@@ -12,6 +13,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/joho/godotenv v1.5.1
+	github.com/likexian/whois v1.15.6
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stripe/stripe-go/v76 v76.25.0
 	golang.org/x/crypto v0.33.0
@@ -48,7 +50,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
