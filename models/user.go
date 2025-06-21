@@ -227,7 +227,7 @@ type Sender struct {
 
 	// Relations
 	WarmupSchedules []WarmupSchedule `gorm:"foreignKey:SenderID" json:"warmup_schedules,omitempty"`
-	Campaigns       []Campaign       `gorm:"foreignKey:SenderID" json:"campaigns,omitempty"`
+	// Campaigns       []Campaign       `gorm:"foreignKey:SenderID" json:"campaigns,omitempty"`
 }
 
 // Add this method to your Sender model
@@ -290,7 +290,7 @@ type EmailTracking struct {
 type Campaign struct {
 	gorm.Model
 	UserID   uint `gorm:"not null;index" json:"user_id"`
-	SenderID uint `gorm:"not null;index" json:"sender_id"`
+	// SenderID uint `gorm:"not null;index" json:"sender_id"`
 
 	// Campaign details
 	Name        string `gorm:"not null" json:"name"`
