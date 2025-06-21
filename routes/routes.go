@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/websocket/v2"
 	"gorm.io/gorm"
 )
 
@@ -119,6 +120,11 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	campaign.Put("/:id/flow", campaignController.UpdateCampaignFlow)
 	campaign.Get("/:id/stats", campaignController.GetCampaignStats)
 	campaign.Post("/webhook", campaignController.HandleCampaignWebhook)
+
+	// WebSocket route for campaign progress
+	app.Get("/api/v1/campaigns/progress", websocket.New(func(c *websocket.Conn) {
+		controller.HandleCampaignProgressWS(c)
+	}))
 
 	// Lead routes
 	lead := api.Group("/leads")
