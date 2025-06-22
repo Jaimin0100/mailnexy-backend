@@ -56,6 +56,80 @@ type CampaignSummary struct {
 }
 
 // GetDashboardStats returns summary statistics for the dashboard cards
+// func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
+// 	user := c.Locals("user").(*models.User)
+// 	timeFrame := c.Query("time_frame", "week") // hour, day, week, month
+
+// 	// Calculate time range based on timeframe
+// 	now := time.Now()
+// 	var startTime time.Time
+
+// 	switch timeFrame {
+// 	case "hour":
+// 		startTime = now.Add(-1 * time.Hour)
+// 	case "day":
+// 		startTime = now.Add(-24 * time.Hour)
+// 	case "week":
+// 		startTime = now.Add(-7 * 24 * time.Hour)
+// 	case "month":
+// 		startTime = now.Add(-30 * 24 * time.Hour)
+// 	default:
+// 		startTime = now.Add(-7 * 24 * time.Hour)
+// 	}
+
+// 	// Get stats from database
+// 	var stats DashboardStats
+
+// 	// Total emails sent
+// 	if err := dc.DB.Model(&models.CampaignActivity{}).
+// 		Where("user_id = ? AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+// 		Count(&stats.TotalEmailSent).Error; err != nil {
+// 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to get email stats", err)
+// 	}
+
+// 	// Open rate
+// 	var openCount int64
+// 	dc.DB.Model(&models.CampaignActivity{}).
+// 		Where("user_id = ? AND opened_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+// 		Count(&openCount)
+
+// 	if stats.TotalEmailSent > 0 {
+// 		stats.OpenRate = float64(openCount) / float64(stats.TotalEmailSent) * 100
+// 	}
+
+// 	// Click rate
+// 	var clickCount int64
+// 	dc.DB.Model(&models.CampaignActivity{}).
+// 		Where("user_id = ? AND clicked_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+// 		Count(&clickCount)
+
+// 	if stats.TotalEmailSent > 0 {
+// 		stats.ClickRate = float64(clickCount) / float64(stats.TotalEmailSent) * 100
+// 	}
+
+// 	// Reply rate
+// 	var replyCount int64
+// 	dc.DB.Model(&models.CampaignActivity{}).
+// 		Where("user_id = ? AND replied_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+// 		Count(&replyCount)
+
+// 	if stats.TotalEmailSent > 0 {
+// 		stats.ReplyRate = float64(replyCount) / float64(stats.TotalEmailSent) * 100
+// 	}
+
+// 	// Bounce rate
+// 	var bounceCount int64
+// 	dc.DB.Model(&models.CampaignActivity{}).
+// 		Where("user_id = ? AND bounced_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+// 		Count(&bounceCount)
+
+// 	if stats.TotalEmailSent > 0 {
+// 		stats.BounceRate = float64(bounceCount) / float64(stats.TotalEmailSent) * 100
+// 	}
+
+// 	return c.JSON(utils.SuccessResponse(stats))
+// }
+
 func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 	timeFrame := c.Query("time_frame", "week") // hour, day, week, month
@@ -82,7 +156,8 @@ func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
 
 	// Total emails sent
 	if err := dc.DB.Model(&models.CampaignActivity{}).
-		Where("user_id = ? AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+		Joins("JOIN campaigns ON campaigns.id = campaign_activities.campaign_id").
+		Where("campaigns.user_id = ? AND campaign_activities.sent_at BETWEEN ? AND ?", user.ID, startTime, now).
 		Count(&stats.TotalEmailSent).Error; err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to get email stats", err)
 	}
@@ -90,9 +165,9 @@ func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
 	// Open rate
 	var openCount int64
 	dc.DB.Model(&models.CampaignActivity{}).
-		Where("user_id = ? AND opened_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+		Joins("JOIN campaigns ON campaigns.id = campaign_activities.campaign_id").
+		Where("campaigns.user_id = ? AND campaign_activities.opened_at IS NOT NULL AND campaign_activities.sent_at BETWEEN ? AND ?", user.ID, startTime, now).
 		Count(&openCount)
-
 	if stats.TotalEmailSent > 0 {
 		stats.OpenRate = float64(openCount) / float64(stats.TotalEmailSent) * 100
 	}
@@ -100,9 +175,9 @@ func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
 	// Click rate
 	var clickCount int64
 	dc.DB.Model(&models.CampaignActivity{}).
-		Where("user_id = ? AND clicked_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+		Joins("JOIN campaigns ON campaigns.id = campaign_activities.campaign_id").
+		Where("campaigns.user_id = ? AND campaign_activities.clicked_at IS NOT NULL AND campaign_activities.sent_at BETWEEN ? AND ?", user.ID, startTime, now).
 		Count(&clickCount)
-
 	if stats.TotalEmailSent > 0 {
 		stats.ClickRate = float64(clickCount) / float64(stats.TotalEmailSent) * 100
 	}
@@ -110,9 +185,9 @@ func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
 	// Reply rate
 	var replyCount int64
 	dc.DB.Model(&models.CampaignActivity{}).
-		Where("user_id = ? AND replied_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+		Joins("JOIN campaigns ON campaigns.id = campaign_activities.campaign_id").
+		Where("campaigns.user_id = ? AND campaign_activities.replied_at IS NOT NULL AND campaign_activities.sent_at BETWEEN ? AND ?", user.ID, startTime, now).
 		Count(&replyCount)
-
 	if stats.TotalEmailSent > 0 {
 		stats.ReplyRate = float64(replyCount) / float64(stats.TotalEmailSent) * 100
 	}
@@ -120,9 +195,9 @@ func (dc *DashboardController) GetDashboardStats(c *fiber.Ctx) error {
 	// Bounce rate
 	var bounceCount int64
 	dc.DB.Model(&models.CampaignActivity{}).
-		Where("user_id = ? AND bounced_at IS NOT NULL AND sent_at BETWEEN ? AND ?", user.ID, startTime, now).
+		Joins("JOIN campaigns ON campaigns.id = campaign_activities.campaign_id").
+		Where("campaigns.user_id = ? AND campaign_activities.bounced_at IS NOT NULL AND campaign_activities.sent_at BETWEEN ? AND ?", user.ID, startTime, now).
 		Count(&bounceCount)
-
 	if stats.TotalEmailSent > 0 {
 		stats.BounceRate = float64(bounceCount) / float64(stats.TotalEmailSent) * 100
 	}
