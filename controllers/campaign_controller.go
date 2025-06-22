@@ -142,41 +142,149 @@ func (cc *CampaignController) GetCampaign(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateCampaign updates campaign details
+// // UpdateCampaign updates campaign details
+// func (cc *CampaignController) UpdateCampaign(c *fiber.Ctx) error {
+// 	user := c.Locals("user").(*models.User)
+// 	campaignID := c.Params("id")
+
+// 	var input struct {
+// 		Name        string `json:"name"`
+// 		Description string `json:"description"`
+// 	}
+
+// 	if err := c.BodyParser(&input); err != nil {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Invalid request body",
+// 		})
+// 	}
+
+// 	var campaign models.Campaign
+// 	if err := cc.DB.Where("id = ? AND user_id = ?", campaignID, user.ID).First(&campaign).Error; err != nil {
+// 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+// 			"error": "Campaign not found",
+// 		})
+// 	}
+
+// 	campaign.Name = input.Name
+// 	campaign.Description = input.Description
+
+// 	if err := cc.DB.Save(&campaign).Error; err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to update campaign",
+// 		})
+// 	}
+
+// 	return c.JSON(fiber.Map{
+// 		"message":  "Campaign updated successfully",
+// 		"campaign": campaign,
+// 	})
+// }
+
+// UpdateCampaign updates campaign details and flow
 func (cc *CampaignController) UpdateCampaign(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 	campaignID := c.Params("id")
 
+	// Define input structure with pointers for partial updates
 	var input struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+		Status      *string `json:"status"`
+		Flow        *struct {
+			Nodes []models.CampaignNode `json:"nodes"`
+			Edges []models.CampaignEdge `json:"edges"`
+		} `json:"flow"`
 	}
 
+	// Parse request body
 	if err := c.BodyParser(&input); err != nil {
+		cc.Logger.Printf("Error parsing request body: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
 
+	// Start database transaction
+	tx := cc.DB.Begin()
+
+	// Find existing campaign
 	var campaign models.Campaign
-	if err := cc.DB.Where("id = ? AND user_id = ?", campaignID, user.ID).First(&campaign).Error; err != nil {
+	if err := tx.Where("id = ? AND user_id = ?", campaignID, user.ID).First(&campaign).Error; err != nil {
+		tx.Rollback()
+		cc.Logger.Printf("Campaign not found: %v", err)
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Campaign not found",
 		})
 	}
 
-	campaign.Name = input.Name
-	campaign.Description = input.Description
+	// Find existing flow
+	var flow models.CampaignFlow
+	if err := tx.Where("campaign_id = ?", campaign.ID).First(&flow).Error; err != nil {
+		tx.Rollback()
+		cc.Logger.Printf("Flow not found: %v", err)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Campaign flow not found",
+		})
+	}
 
-	if err := cc.DB.Save(&campaign).Error; err != nil {
+	// Apply partial updates to campaign
+	if input.Name != nil {
+		campaign.Name = *input.Name
+	}
+	if input.Description != nil {
+		campaign.Description = *input.Description
+	}
+	if input.Status != nil {
+		campaign.Status = *input.Status
+	}
+
+	// Update flow if provided
+	if input.Flow != nil {
+		flow.Nodes = input.Flow.Nodes
+		flow.Edges = input.Flow.Edges
+		flow.UpdatedAt = time.Now()
+
+		if err := tx.Save(&flow).Error; err != nil {
+			tx.Rollback()
+			cc.Logger.Printf("Failed to update flow: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to update campaign flow",
+			})
+		}
+	}
+
+	// Update campaign
+	campaign.UpdatedAt = time.Now()
+	if err := tx.Save(&campaign).Error; err != nil {
+		tx.Rollback()
+		cc.Logger.Printf("Failed to update campaign: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update campaign",
 		})
 	}
 
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		cc.Logger.Printf("Transaction commit failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to complete update",
+		})
+	}
+
+	// Return updated campaign data
 	return c.JSON(fiber.Map{
-		"message":  "Campaign updated successfully",
-		"campaign": campaign,
+		"message": "Campaign updated successfully",
+		"campaign": fiber.Map{
+			"id":          campaign.ID,
+			"name":        campaign.Name,
+			"description": campaign.Description,
+			"status":      campaign.Status,
+			"updated_at":  campaign.UpdatedAt,
+		},
+		"flow": fiber.Map{
+			"nodes": flow.Nodes,
+			"edges": flow.Edges,
+		},
 	})
 }
 
@@ -833,4 +941,69 @@ func HandleCampaignProgressWS(c *websocket.Conn) {
 			}
 		}
 	}
+}
+
+// DeleteCampaign deletes a campaign
+func (cc *CampaignController) DeleteCampaign(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	campaignID, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid campaign ID",
+		})
+	}
+
+	// Verify user owns the campaign
+	var campaign models.Campaign
+	if err := cc.DB.Where("id = ? AND user_id = ?", campaignID, user.ID).First(&campaign).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Campaign not found",
+		})
+	}
+
+	// Start transaction
+	tx := cc.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Delete in proper order to respect foreign keys
+	tables := []interface{}{
+		&models.CampaignActivity{},
+		&models.CampaignExecution{},
+		&models.CampaignLeadList{},
+		&models.CampaignFlow{},
+	}
+
+	for _, table := range tables {
+		if err := tx.Where("campaign_id = ?", campaign.ID).Delete(table).Error; err != nil {
+			tx.Rollback()
+			cc.Logger.Printf("Failed to delete related records: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to delete campaign dependencies",
+			})
+		}
+	}
+
+	// Finally delete campaign
+	if err := tx.Delete(&campaign).Error; err != nil {
+		tx.Rollback()
+		cc.Logger.Printf("Failed to delete campaign: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete campaign",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		cc.Logger.Printf("Transaction commit failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to complete deletion",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Campaign deleted successfully",
+	})
 }

@@ -119,6 +119,7 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	campaign.Get("/:id/flow", campaignController.GetCampaignFlow)
 	campaign.Put("/:id/flow", campaignController.UpdateCampaignFlow)
 	campaign.Get("/:id/stats", campaignController.GetCampaignStats)
+	campaign.Delete("/:id", campaignController.DeleteCampaign)
 	campaign.Post("/webhook", campaignController.HandleCampaignWebhook)
 
 	// WebSocket route for campaign progress
