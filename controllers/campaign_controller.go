@@ -33,8 +33,11 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 		Name        string                `json:"name"`
 		Description string                `json:"description"`
 		LeadListIDs []uint                `json:"lead_list_ids"` // Add lead list IDs
-		Nodes       []models.CampaignNode `json:"nodes"`
-		Edges       []models.CampaignEdge `json:"edges"`
+        Flow        struct {
+            Nodes []models.CampaignNode `json:"nodes"`
+            Edges []models.CampaignEdge `json:"edges"`
+        } `json:"flow"` // Add nested flow structure
+        Status      string                `json:"status"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
@@ -42,6 +45,8 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 			"error": "Invalid request body",
 		})
 	}
+
+
 
 	// Start transaction
 	tx := cc.DB.Begin()
@@ -79,8 +84,8 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 	flow := models.CampaignFlow{
 		CampaignID: campaign.ID,
 		UserID:     user.ID,
-		Nodes:      input.Nodes,
-		Edges:      input.Edges,
+		Nodes:      input.Flow.Nodes,
+		Edges:      input.Flow.Edges,
 	}
 
 	if err := tx.Create(&flow).Error; err != nil {
@@ -110,7 +115,47 @@ func (cc *CampaignController) GetCampaigns(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(campaigns)
+	// return c.JSON(fiber.Map{
+    //     "id":          campaign.ID,
+    //     "name":        campaign.Name,
+    //     "description": campaign.Description,
+    //     "status":      campaign.Status,
+    //     "flow":        flow, // Ensure flow is included
+    //     "created_at":  campaign.CreatedAt,
+    //     "updated_at":  campaign.UpdatedAt,
+    // })
+	// Fetch flows for each campaign
+    type CampaignResponse struct {
+        ID          uint                  `json:"id"`
+        Name        string                `json:"name"`
+        Description string                `json:"description"`
+        Status      string                `json:"status"`
+        Flow        *models.CampaignFlow  `json:"flow"`
+        CreatedAt   time.Time             `json:"created_at"`
+        UpdatedAt   time.Time             `json:"updated_at"`
+    }
+
+    response := make([]CampaignResponse, len(campaigns))
+    for i, campaign := range campaigns {
+        var flow models.CampaignFlow
+        err := cc.DB.Where("campaign_id = ?", campaign.ID).First(&flow).Error
+        if err != nil && err != gorm.ErrRecordNotFound {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "error": "Failed to fetch campaign flow",
+            })
+        }
+        response[i] = CampaignResponse{
+            ID:          campaign.ID,
+            Name:        campaign.Name,
+            Description: campaign.Description,
+            Status:      campaign.Status,
+            Flow:        &flow,
+            CreatedAt:   campaign.CreatedAt,
+            UpdatedAt:   campaign.UpdatedAt,
+        }
+    }
+
+    return c.JSON(response)
 }
 
 // GetCampaign returns a single campaign with its flow

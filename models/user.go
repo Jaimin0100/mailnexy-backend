@@ -46,9 +46,9 @@ type User struct {
 	StripeCustomerID    *string `gorm:"index" json:"stripe_customer_id,omitempty"`
 	StripePaymentMethod *string `json:"stripe_payment_method,omitempty"`
 	DefaultCurrency     string  `gorm:"default:'usd'" json:"default_currency"`
-	TokenVersion         uint       `gorm:"default:0" json:"-"`
-	ResetToken           *string    `gorm:"size:255"`
-	ResetTokenExpiresAt  *time.Time
+	TokenVersion        uint    `gorm:"default:0" json:"-"`
+	ResetToken          *string `gorm:"size:255"`
+	ResetTokenExpiresAt *time.Time
 
 	// Relations
 	Senders            []Sender            `gorm:"foreignKey:UserID" json:"senders,omitempty"`
@@ -62,15 +62,14 @@ type User struct {
 
 type RefreshToken struct {
 	gorm.Model
-	UserID     uint      `gorm:"index;not null"`
-	TokenHash  string    `gorm:"not null"`
-	SessionID  string    `gorm:"index;not null"`
-	UserAgent  string    `gorm:"size:512"`
-	IPAddress  string    `gorm:"size:45"` // Supports IPv6
-	ExpiresAt  time.Time `gorm:"not null"`
-	IsRevoked  bool      `gorm:"default:false;not null"`
+	UserID    uint      `gorm:"index;not null"`
+	TokenHash string    `gorm:"not null"`
+	SessionID string    `gorm:"index;not null"`
+	UserAgent string    `gorm:"size:512"`
+	IPAddress string    `gorm:"size:45"` // Supports IPv6
+	ExpiresAt time.Time `gorm:"not null"`
+	IsRevoked bool      `gorm:"default:false;not null"`
 }
-
 
 // Plan represents available credit packages
 type Plan struct {
@@ -289,7 +288,7 @@ type EmailTracking struct {
 // Campaign represents an email campaign
 type Campaign struct {
 	gorm.Model
-	UserID   uint `gorm:"not null;index" json:"user_id"`
+	UserID uint `gorm:"not null;index" json:"user_id"`
 	// SenderID uint `gorm:"not null;index" json:"sender_id"`
 
 	// Campaign details
@@ -335,8 +334,8 @@ type CampaignFlow struct {
 	UserID     uint `gorm:"not null;index" json:"user_id"`
 
 	// Flow structure stored as JSON
-	Nodes []CampaignNode `gorm:"type:jsonb" json:"nodes"`
-	Edges []CampaignEdge `gorm:"type:jsonb" json:"edges"`
+	Nodes []CampaignNode `gorm:"type:jsonb;serializer:json" json:"nodes"`
+	Edges []CampaignEdge `gorm:"type:jsonb;serializer:json" json:"edges"`
 
 	// Status
 	IsActive    bool `gorm:"default:false" json:"is_active"`
