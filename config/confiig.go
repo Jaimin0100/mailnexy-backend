@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"mailnexy/models"
 	"os"
 	"strings"
 	"time"
@@ -156,6 +157,12 @@ func ConnectDB() error {
 	}
 
 	log.Println("✅ Successfully connected to the database")
+	// Add migration logic here
+	log.Println("🔄 Starting database migration...")
+	if err := migrateDB(DB); err != nil {
+		return fmt.Errorf("database migration failed: %w", err)
+	}
+	log.Println("✅ Database migration completed")
 	return nil
 }
 
@@ -211,4 +218,69 @@ func logConfig() {
 		AppConfig.Google.ClientID != "",
 		AppConfig.Microsoft.ClientID != "",
 		AppConfig.Yahoo.ClientID != "")
+}
+
+func migrateDB(db *gorm.DB) error {
+
+	// Disable foreign key constraints during migration
+	if err := db.Exec("SET CONSTRAINTS ALL DEFERRED").Error; err != nil {
+		return fmt.Errorf("failed to defer constraints: %w", err)
+	}
+
+	// Get the database dialect
+	dialect := db.Dialector.Name()
+
+	// For PostgreSQL, drop constraints more carefully
+	if dialect == "postgres" {
+		// Check if constraint exists before trying to drop it
+		if err := db.Exec(`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_constraint 
+                    WHERE conname = 'uni_users_email'
+                ) THEN
+                    EXECUTE 'ALTER TABLE users DROP CONSTRAINT uni_users_email';
+                END IF;
+            END $$;
+        `).Error; err != nil {
+			return fmt.Errorf("failed to conditionally drop constraint: %w", err)
+		}
+	}
+
+	return db.AutoMigrate(
+		&models.User{},
+		&models.RefreshToken{},
+		&models.Plan{},
+		&models.CreditTransaction{},
+		&models.CreditUsage{},
+		&models.Sender{},
+		&models.WarmupSchedule{},
+		&models.WarmupStage{},
+		&models.EmailTracking{},
+		&models.Campaign{},
+		&models.CampaignFlow{},
+		&models.CampaignExecution{},
+		&models.CampaignLeadList{},
+		&models.LeadList{},
+		&models.Lead{},
+		&models.LeadListMembership{},
+		&models.LeadTag{},
+		&models.LeadCustomField{},
+		&models.CampaignActivity{},
+		&models.ClickEvent{},
+		&models.LeadActivity{},
+		&models.EmailVerification{},
+		&models.VerificationResult{},
+		&models.APIKey{},
+		&models.Unsubscribe{},
+		&models.Bounce{},
+		&models.Template{},
+		&models.Sequence{},
+		&models.SequenceStep{},
+		&models.Team{},
+		&models.TeamMember{},
+		&models.UserFeature{},
+		&models.Feature{},
+	)
 }

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
@@ -25,31 +26,148 @@ func NewCampaignController(db *gorm.DB, logger *log.Logger) *CampaignController 
 	}
 }
 
-// Enhanced CreateCampaign with lead list support
+// // Enhanced CreateCampaign with lead list support
+// func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
+// 	user := c.Locals("user").(*models.User)
+
+// 	var input struct {
+// 		Name        string `json:"name"`
+// 		Description string `json:"description"`
+// 		LeadListIDs []uint `json:"lead_list_ids"` // Add lead list IDs
+// 		Flow        struct {
+// 			Nodes []models.CampaignNode `json:"nodes"`
+// 			Edges []models.CampaignEdge `json:"edges"`
+// 		} `json:"flow"` // Add nested flow structure
+// 		Status string `json:"status"`
+// 	}
+
+// 	if err := c.BodyParser(&input); err != nil {
+// 		cc.Logger.Printf("Error parsing request body: %v", err)
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Invalid request body",
+// 		})
+// 	}
+
+// 	// Log input data for debugging
+// 	cc.Logger.Printf("Received input: %+v", input)
+
+// 	// Validate nodes and edges
+// 	if len(input.Flow.Nodes) == 0 || len(input.Flow.Edges) == 0 {
+// 		cc.Logger.Printf("Nodes or edges are empty")
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Nodes and edges cannot be empty",
+// 		})
+// 	}
+
+// 	// Start transaction
+// 	tx := cc.DB.Begin()
+
+// 	// Create base campaign
+// 	campaign := models.Campaign{
+// 		UserID:      user.ID,
+// 		Name:        input.Name,
+// 		Description: input.Description,
+// 		Subject:     "Custom Campaign",
+// 		Status:      "draft",
+// 	}
+
+// 	if err := tx.Create(&campaign).Error; err != nil {
+// 		tx.Rollback()
+// 		cc.Logger.Printf("Failed to create campaign: %v", err)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to create campaign",
+// 		})
+// 	}
+// 	// Associate lead lists with campaign
+// // Associate lead lists with campaign
+//     for _, listID := range input.LeadListIDs {
+//         if err := tx.Create(&models.CampaignLeadList{
+//             CampaignID: campaign.ID,
+//             LeadListID: listID,
+//         }).Error; err != nil {
+//             tx.Rollback()
+//             cc.Logger.Printf("Failed to associate lead list: %v", err)
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "Failed to associate lead list with campaign",
+//             })
+//         }
+//     }
+
+// 	// Create campaign flow
+// 	flow := models.CampaignFlow{
+// 		CampaignID: campaign.ID,
+// 		UserID:     user.ID,
+// 		Nodes:      input.Flow.Nodes, // Directly use the nodes
+// 		Edges:      input.Flow.Edges, // Directly use the edges
+// 	}
+// 	// Ensure nodes and edges are properly serialized
+//     nodesJSON, err := json.Marshal(input.Flow.Nodes)
+// 	if err := tx.Create(&flow).Error; err != nil {
+// 		tx.Rollback()
+// 		cc.Logger.Printf("Failed to marshal nodes: %v", err)
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to create campaign flow",
+// 		})
+// 	}
+
+// 	tx.Commit()
+
+// 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+// 		"message":  "Campaign created successfully",
+// 		"campaign": campaign,
+// 		"flow":     flow,
+// 	})
+// }
+
 func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
 	var input struct {
-		Name        string                `json:"name"`
-		Description string                `json:"description"`
-		LeadListIDs []uint                `json:"lead_list_ids"` // Add lead list IDs
-        Flow        struct {
-            Nodes []models.CampaignNode `json:"nodes"`
-            Edges []models.CampaignEdge `json:"edges"`
-        } `json:"flow"` // Add nested flow structure
-        Status      string                `json:"status"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		LeadListIDs []uint `json:"lead_list_ids"`
+		Flow        struct {
+			Nodes []models.CampaignNode `json:"nodes"`
+			Edges []models.CampaignEdge `json:"edges"`
+		} `json:"flow"`
+		Status string `json:"status"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
+		cc.Logger.Printf("Error parsing request body: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
 
+	// Log input data for debugging
+	cc.Logger.Printf("Received input: %+v", input)
 
+	// Validate nodes and edges
+	if len(input.Flow.Nodes) == 0 || len(input.Flow.Edges) == 0 {
+		cc.Logger.Printf("Nodes or edges are empty")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Nodes and edges cannot be empty",
+		})
+	}
 
 	// Start transaction
 	tx := cc.DB.Begin()
+
+	if len(input.Flow.Nodes) == 0 || len(input.Flow.Edges) == 0 {
+		cc.Logger.Printf("Nodes or edges are empty")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Nodes and edges cannot be empty",
+		})
+	}
+
+	// After - Allow empty edges
+	if len(input.Flow.Nodes) == 0 {
+		cc.Logger.Printf("Nodes are empty")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Nodes cannot be empty",
+		})
+	}
 
 	// Create base campaign
 	campaign := models.Campaign{
@@ -62,6 +180,7 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 
 	if err := tx.Create(&campaign).Error; err != nil {
 		tx.Rollback()
+		cc.Logger.Printf("Failed to create campaign: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create campaign",
 		})
@@ -74,6 +193,7 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 			LeadListID: listID,
 		}).Error; err != nil {
 			tx.Rollback()
+			cc.Logger.Printf("Failed to associate lead list: %v", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to associate lead list with campaign",
 			})
@@ -88,8 +208,30 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 		Edges:      input.Flow.Edges,
 	}
 
+	// Ensure nodes and edges are properly serialized
+	nodesJSON, err := json.Marshal(input.Flow.Nodes)
+	if err != nil {
+		tx.Rollback()
+		cc.Logger.Printf("Failed to marshal nodes: %v", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid nodes format",
+		})
+	}
+	edgesJSON, err := json.Marshal(input.Flow.Edges)
+	if err != nil {
+		tx.Rollback()
+		cc.Logger.Printf("Failed to marshal edges: %v", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid edges format",
+		})
+	}
+
+	cc.Logger.Printf("Serialized nodes: %s", string(nodesJSON))
+	cc.Logger.Printf("Serialized edges: %s", string(edgesJSON))
+
 	if err := tx.Create(&flow).Error; err != nil {
 		tx.Rollback()
+		cc.Logger.Printf("Failed to create campaign flow: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create campaign flow",
 		})
@@ -104,6 +246,72 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 	})
 }
 
+// // GetCampaigns returns a list of all campaigns for the user
+// func (cc *CampaignController) GetCampaigns(c *fiber.Ctx) error {
+// 	user := c.Locals("user").(*models.User)
+
+// 	var campaigns []models.Campaign
+// 	if err := cc.DB.Where("user_id = ?", user.ID).Find(&campaigns).Error; err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to fetch campaigns",
+// 		})
+// 	}
+
+// 	// return c.JSON(fiber.Map{
+// 	//     "id":          campaign.ID,
+// 	//     "name":        campaign.Name,
+// 	//     "description": campaign.Description,
+// 	//     "status":      campaign.Status,
+// 	//     "flow":        flow, // Ensure flow is included
+// 	//     "created_at":  campaign.CreatedAt,
+// 	//     "updated_at":  campaign.UpdatedAt,
+// 	// })
+// 	// Fetch flows for each campaign
+// 	type CampaignResponse struct {
+// 		ID          uint   `json:"id"`
+// 		Name        string `json:"name"`
+// 		Description string `json:"description"`
+// 		Status      string `json:"status"`
+// 		Flow        struct {
+// 			Nodes []models.CampaignNode `json:"nodes"`
+// 			Edges []models.CampaignEdge `json:"edges"`
+// 		} `json:"flow"`
+// 		CreatedAt time.Time `json:"created_at"`
+// 		UpdatedAt time.Time `json:"updated_at"`
+// 	}
+
+// 	response := make([]CampaignResponse, len(campaigns))
+// 	for i, campaign := range campaigns {
+// 		var flow models.CampaignFlow
+// 		err := cc.DB.Where("campaign_id = ?", campaign.ID).First(&flow).Error
+// 		if err != nil && err != gorm.ErrRecordNotFound {
+// 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 				"error": "Failed to fetch campaign flow",
+// 			})
+// 		}
+// 		// Create the properly structured flow object
+// 		flowResponse := struct {
+// 			Nodes []models.CampaignNode `json:"nodes"`
+// 			Edges []models.CampaignEdge `json:"edges"`
+// 		}{
+// 			Nodes: flow.Nodes,
+// 			Edges: flow.Edges,
+// 		}
+
+// 		response[i] = CampaignResponse{
+// 			ID:          campaign.ID,
+// 			Name:        campaign.Name,
+// 			Description: campaign.Description,
+// 			Status:      campaign.Status,
+// 			Flow:        flowResponse,
+// 			CreatedAt:   campaign.CreatedAt,
+// 			UpdatedAt:   campaign.UpdatedAt,
+// 		}
+// 	}
+
+// 	return c.JSON(response)
+// }
+
 // GetCampaigns returns a list of all campaigns for the user
 func (cc *CampaignController) GetCampaigns(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
@@ -115,47 +323,72 @@ func (cc *CampaignController) GetCampaigns(c *fiber.Ctx) error {
 		})
 	}
 
-	// return c.JSON(fiber.Map{
-    //     "id":          campaign.ID,
-    //     "name":        campaign.Name,
-    //     "description": campaign.Description,
-    //     "status":      campaign.Status,
-    //     "flow":        flow, // Ensure flow is included
-    //     "created_at":  campaign.CreatedAt,
-    //     "updated_at":  campaign.UpdatedAt,
-    // })
-	// Fetch flows for each campaign
-    type CampaignResponse struct {
-        ID          uint                  `json:"id"`
-        Name        string                `json:"name"`
-        Description string                `json:"description"`
-        Status      string                `json:"status"`
-        Flow        *models.CampaignFlow  `json:"flow"`
-        CreatedAt   time.Time             `json:"created_at"`
-        UpdatedAt   time.Time             `json:"updated_at"`
-    }
+	type CampaignResponse struct {
+		ID          uint   `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Status      string `json:"status"`
+		Flow        struct {
+			Nodes []models.CampaignNode `json:"nodes"`
+			Edges []models.CampaignEdge `json:"edges"`
+		} `json:"flow"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
 
-    response := make([]CampaignResponse, len(campaigns))
-    for i, campaign := range campaigns {
-        var flow models.CampaignFlow
-        err := cc.DB.Where("campaign_id = ?", campaign.ID).First(&flow).Error
-        if err != nil && err != gorm.ErrRecordNotFound {
-            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                "error": "Failed to fetch campaign flow",
-            })
-        }
-        response[i] = CampaignResponse{
-            ID:          campaign.ID,
-            Name:        campaign.Name,
-            Description: campaign.Description,
-            Status:      campaign.Status,
-            Flow:        &flow,
-            CreatedAt:   campaign.CreatedAt,
-            UpdatedAt:   campaign.UpdatedAt,
-        }
-    }
+	response := make([]CampaignResponse, len(campaigns))
+	for i, campaign := range campaigns {
+		var flow models.CampaignFlow
+		err := cc.DB.Where("campaign_id = ?", campaign.ID).First(&flow).Error
 
-    return c.JSON(response)
+		// Handle flow not found
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				response[i] = CampaignResponse{
+					ID:          campaign.ID,
+					Name:        campaign.Name,
+					Description: campaign.Description,
+					Status:      campaign.Status,
+					Flow: struct {
+						Nodes []models.CampaignNode `json:"nodes"`
+						Edges []models.CampaignEdge `json:"edges"`
+					}{},
+					CreatedAt: campaign.CreatedAt,
+					UpdatedAt: campaign.UpdatedAt,
+				}
+				continue
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch campaign flow",
+			})
+		}
+
+		// Ensure Nodes and Edges are not nil
+		if flow.Nodes == nil {
+			flow.Nodes = []models.CampaignNode{}
+		}
+		if flow.Edges == nil {
+			flow.Edges = []models.CampaignEdge{}
+		}
+
+		response[i] = CampaignResponse{
+			ID:          campaign.ID,
+			Name:        campaign.Name,
+			Description: campaign.Description,
+			Status:      campaign.Status,
+			Flow: struct {
+				Nodes []models.CampaignNode `json:"nodes"`
+				Edges []models.CampaignEdge `json:"edges"`
+			}{
+				Nodes: flow.Nodes,
+				Edges: flow.Edges,
+			},
+			CreatedAt: campaign.CreatedAt,
+			UpdatedAt: campaign.UpdatedAt,
+		}
+	}
+
+	return c.JSON(response)
 }
 
 // GetCampaign returns a single campaign with its flow
@@ -608,7 +841,7 @@ func (cc *CampaignController) runCampaignWorker(campaignID, flowID, executionID 
 			}
 
 			// Send email to lead
-			err = cc.sendEmailToLead(sender, lead, currentNode.Data)
+			err = cc.sendEmailToLead(sender, lead, currentNode.Data, &campaign)
 			if err != nil {
 				cc.Logger.Printf("Failed to send email to lead %d: %v", lead.ID, err)
 				// Mark lead as failed (you might want to retry later)
@@ -814,7 +1047,7 @@ func (cc *CampaignController) getNextLead(campaignID uint) (*models.Lead, error)
 }
 
 // sendEmailToLead sends an email to a lead
-func (cc *CampaignController) sendEmailToLead(sender *models.Sender, lead *models.Lead, nodeData models.NodeData) error {
+func (cc *CampaignController) sendEmailToLead(sender *models.Sender, lead *models.Lead, nodeData models.NodeData, campaign *models.Campaign) error {
 	// Implement your email sending logic here
 	// Use the MailService to send the email
 	email := utils.Email{
@@ -832,10 +1065,12 @@ func (cc *CampaignController) sendEmailToLead(sender *models.Sender, lead *model
 
 	// Record the activity with the messageID
 	activity := models.CampaignActivity{
-		LeadID:    lead.ID,
-		SenderID:  sender.ID,
-		SentAt:    utils.Pointer(time.Now()),
-		MessageID: messageID, // Store the message ID for tracking
+		CampaignID: campaign.ID, // Set CampaignID
+		LeadID:     lead.ID,
+		UserID:     campaign.UserID,
+		SenderID:   sender.ID,
+		SentAt:     utils.Pointer(time.Now()),
+		MessageID:  messageID, // Store the message ID for tracking
 	}
 
 	if err := cc.DB.Create(&activity).Error; err != nil {

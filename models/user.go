@@ -334,8 +334,8 @@ type CampaignFlow struct {
 	UserID     uint `gorm:"not null;index" json:"user_id"`
 
 	// Flow structure stored as JSON
-	Nodes []CampaignNode `gorm:"type:jsonb;serializer:json" json:"nodes"`
-	Edges []CampaignEdge `gorm:"type:jsonb;serializer:json" json:"edges"`
+	Nodes []CampaignNode `json:"nodes" gorm:"type:jsonb;serializer:json"`
+	Edges []CampaignEdge `json:"edges" gorm:"type:jsonb;serializer:json"`
 
 	// Status
 	IsActive    bool `gorm:"default:false" json:"is_active"`
@@ -490,6 +490,7 @@ type LeadCustomField struct {
 type CampaignActivity struct {
 	gorm.Model
 	CampaignID uint `gorm:"not null;index" json:"campaign_id"`
+	UserID     uint `gorm:"not null;index" json:"user_id"` // Add this line
 	LeadID     uint `gorm:"not null;index" json:"lead_id"`
 
 	// Activity types
