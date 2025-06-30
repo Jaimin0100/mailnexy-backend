@@ -369,6 +369,15 @@ type NodeData struct {
 	TemplateID *uint  `json:"template_id,omitempty"`
 
 	// Condition node fields
+	OpenedEmailEnabled     bool   `json:"openedEmailEnabled,omitempty"`
+	ClickedLinkEnabled     bool   `json:"clickedLinkEnabled,omitempty"`
+	OpenedEmailWaitingTime string `json:"openedEmailWaitingTime,omitempty"`
+	ClickedLinkWaitingTime string `json:"clickedLinkWaitingTime,omitempty"`
+
+	// Delay node fields
+	WaitingTime string `json:"waitingTime,omitempty"`
+
+	// Condition node fields
 	ConditionType string `json:"condition_type,omitempty"` // opened, clicked, replied
 	MatchValue    string `json:"match_value,omitempty"`    // any, none, specific
 
@@ -382,10 +391,12 @@ type NodeData struct {
 
 // CampaignEdge represents connections between nodes
 type CampaignEdge struct {
-	ID        string `json:"id"`
-	Source    string `json:"source"`
-	Target    string `json:"target"`
-	Condition string `json:"condition,omitempty"` // for conditional branches
+	ID           string `json:"id"`
+	Source       string `json:"source"`
+	SourceHandle string `json:"sourceHandle"`
+	Target       string `json:"target"`
+	TargetHandle string `json:"targetHandle"`
+	Condition    string `json:"condition"` // for conditional branches
 }
 
 // CampaignExecution tracks the current state of campaign execution

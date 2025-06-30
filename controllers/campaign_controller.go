@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"log"
+	"strconv"
 	"time"
 
 	"mailnexy/models"
@@ -126,17 +127,18 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 		Name        string `json:"name"`
 		Description string `json:"description"`
 		LeadListIDs []uint `json:"lead_list_ids"`
+		Status      string `json:"status"`
 		Flow        struct {
 			Nodes []models.CampaignNode `json:"nodes"`
 			Edges []models.CampaignEdge `json:"edges"`
 		} `json:"flow"`
-		Status string `json:"status"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
-		cc.Logger.Printf("Error parsing request body: %v", err)
+		cc.Logger.Printf("Error parsing request body: %v", err, c.Body())
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+			"error":   "Invalid request body",
+			"details": err.Error(),
 		})
 	}
 
@@ -144,7 +146,7 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 	cc.Logger.Printf("Received input: %+v", input)
 
 	// Validate nodes and edges
-	if len(input.Flow.Nodes) == 0 || len(input.Flow.Edges) == 0 {
+	if len(input.Flow.Nodes) == 0 {
 		cc.Logger.Printf("Nodes or edges are empty")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Nodes and edges cannot be empty",
@@ -154,7 +156,7 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 	// Start transaction
 	tx := cc.DB.Begin()
 
-	if len(input.Flow.Nodes) == 0 || len(input.Flow.Edges) == 0 {
+	if len(input.Flow.Nodes) == 0 {
 		cc.Logger.Printf("Nodes or edges are empty")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Nodes and edges cannot be empty",
@@ -405,6 +407,7 @@ func (cc *CampaignController) GetCampaign(c *fiber.Ctx) error {
 
 	var flow models.CampaignFlow
 	if err := cc.DB.Where("campaign_id = ?", campaign.ID).First(&flow).Error; err != nil {
+		cc.Logger.Printf("Flow fetch error: %v", err)
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Campaign flow not found",
 		})
@@ -412,6 +415,8 @@ func (cc *CampaignController) GetCampaign(c *fiber.Ctx) error {
 
 	var execution models.CampaignExecution
 	cc.DB.Where("campaign_id = ?", campaign.ID).First(&execution)
+
+	cc.Logger.Printf("Fetched flow: nodes=%d, edges=%d", len(flow.Nodes), len(flow.Edges))
 
 	return c.JSON(fiber.Map{
 		"campaign":  campaign,
@@ -569,10 +574,17 @@ func (cc *CampaignController) UpdateCampaign(c *fiber.Ctx) error {
 // GetCampaignFlow returns the flow for a campaign
 func (cc *CampaignController) GetCampaignFlow(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	campaignID := c.Params("id")
+	campaignIDStr := c.Params("id")
+
+	// Validate that campaignIDStr is a valid integer
+	if _, err := strconv.ParseUint(campaignIDStr, 10, 64); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid campaign ID",
+		})
+	}
 
 	var campaign models.Campaign
-	if err := cc.DB.Where("id = ? AND user_id = ?", campaignID, user.ID).First(&campaign).Error; err != nil {
+	if err := cc.DB.Where("id = ? AND user_id = ?", campaignIDStr, user.ID).First(&campaign).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Campaign not found",
 		})
