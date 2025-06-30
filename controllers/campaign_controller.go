@@ -326,11 +326,17 @@ func (cc *CampaignController) GetCampaigns(c *fiber.Ctx) error {
 	}
 
 	type CampaignResponse struct {
-		ID          uint   `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Status      string `json:"status"`
-		Flow        struct {
+		ID              uint   `json:"id"`
+		Name            string `json:"name"`
+		Description     string `json:"description"`
+		Status          string `json:"status"`
+		SentCount       int    `json:"sent_count"`
+		OpenCount       int    `json:"open_count"`
+		ClickCount      int    `json:"click_count"`
+		ReplyCount      int    `json:"reply_count"`
+		BounceCount     int    `json:"bounce_count"`
+		InterestedCount int    `json:"interested_count"`
+		Flow            struct {
 			Nodes []models.CampaignNode `json:"nodes"`
 			Edges []models.CampaignEdge `json:"edges"`
 		} `json:"flow"`
@@ -373,11 +379,39 @@ func (cc *CampaignController) GetCampaigns(c *fiber.Ctx) error {
 			flow.Edges = []models.CampaignEdge{}
 		}
 
+		// Fetch execution data
+		var execution models.CampaignExecution
+		sentCount := campaign.SentCount
+		openCount := campaign.OpenCount
+		clickCount := campaign.ClickCount
+		replyCount := campaign.ReplyCount
+		bounceCount := campaign.BounceCount
+
+		err = cc.DB.Where("campaign_id = ?", campaign.ID).First(&execution).Error
+		if err == nil {
+			// Override with execution data if available
+			sentCount = execution.EmailsSent
+			openCount = execution.Opens
+			clickCount = execution.Clicks
+			replyCount = execution.Replies
+			// BounceCount might need separate aggregation; use model value for now
+		} else if err != gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch campaign execution",
+			})
+		}
+
 		response[i] = CampaignResponse{
-			ID:          campaign.ID,
-			Name:        campaign.Name,
-			Description: campaign.Description,
-			Status:      campaign.Status,
+			ID:              campaign.ID,
+			Name:            campaign.Name,
+			Description:     campaign.Description,
+			Status:          campaign.Status,
+			SentCount:       sentCount,
+			OpenCount:       openCount,
+			ClickCount:      clickCount,
+			ReplyCount:      replyCount,
+			BounceCount:     bounceCount,
+			InterestedCount: 0,
 			Flow: struct {
 				Nodes []models.CampaignNode `json:"nodes"`
 				Edges []models.CampaignEdge `json:"edges"`
