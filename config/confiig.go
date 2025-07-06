@@ -282,5 +282,8 @@ func migrateDB(db *gorm.DB) error {
 		&models.TeamMember{},
 		&models.UserFeature{},
 		&models.Feature{},
+		&models.UniboxEmail{},
+		&models.UniboxFolder{},
+		&models.UniboxEmailFolder{},
 	)
 }

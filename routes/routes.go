@@ -68,6 +68,7 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	campaignController := controller.NewCampaignController(db, log.New(os.Stdout, "CAMPAIGN: ", log.LstdFlags))
 	leadController := controller.NewLeadController(db, log.New(os.Stdout, "LEAD: ", log.LstdFlags))
 	dashboardController := controller.NewDashboardController(db, log.New(os.Stdout, "DASHBOARD: ", log.LstdFlags))
+	uniboxController := controller.NewUniboxController(db, log.New(os.Stdout, "UNIBOX: ", log.LstdFlags))
 
 	// API group with versioning and protection
 	api := app.Group("/api/v1", middleware.Protected(), logger.New(logger.Config{
@@ -151,6 +152,18 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	// Start the sender counter reset goroutine
 	campaignSender := utils.NewCampaignSender(db, log.New(os.Stdout, "SENDER: ", log.LstdFlags))
 	go campaignSender.ResetDailyCounters()
+
+	
+	// Unibox routes
+	unibox := api.Group("/unibox")
+	unibox.Post("/fetch", uniboxController.FetchEmails)
+	unibox.Get("/emails", uniboxController.GetEmails)
+	unibox.Get("/emails/:id", uniboxController.GetEmail)
+	unibox.Put("/emails/:id", uniboxController.UpdateEmail)
+	unibox.Put("/emails/:id/move", uniboxController.MoveEmail)
+	unibox.Get("/folders", uniboxController.GetFolders)
+	unibox.Post("/folders", uniboxController.CreateFolder)
+	unibox.Delete("/folders/:id", uniboxController.DeleteFolder)
 
 	// Log initialization
 	log.Println("API routes initialized successfully")

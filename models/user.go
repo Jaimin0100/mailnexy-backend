@@ -238,6 +238,57 @@ func (s *Sender) Sanitize() {
 	s.DKIMPrivateKey = ""
 }
 
+// UniboxEmail represents an email in the unified inbox
+type UniboxEmail struct {
+	gorm.Model
+	UserID      uint      `gorm:"not null;index" json:"user_id"`
+	SenderID    uint      `gorm:"not null;index" json:"sender_id"`
+	MessageID   string    `gorm:"not null;index" json:"message_id"`
+	ThreadID    string    `gorm:"index" json:"thread_id"`
+	From        string    `gorm:"not null" json:"from"`
+	To          string    `gorm:"not null" json:"to"`
+	Subject     string    `json:"subject"`
+	Body        string    `gorm:"type:text" json:"body"`
+	BodyHTML    string    `gorm:"type:text" json:"body_html"`
+	Date        time.Time `gorm:"not null" json:"date"`
+	IsRead      bool      `gorm:"default:false" json:"is_read"`
+	IsStarred   bool      `gorm:"default:false" json:"is_starred"`
+	IsImportant bool      `gorm:"default:false" json:"is_important"`
+	Labels      []string  `gorm:"type:text[]" json:"labels"`
+	Attachments []string  `gorm:"type:text[]" json:"attachments"`
+	InReplyTo   string    `json:"in_reply_to"`
+	References  string    `json:"references"`
+	Size        int       `json:"size"`
+
+	// Relations
+	User   User   `json:"-"`
+	Sender Sender `json:"sender"`
+}
+
+// UniboxFolder represents a folder/category in the unified inbox
+type UniboxFolder struct {
+	gorm.Model
+	UserID uint   `gorm:"not null;index" json:"user_id"`
+	Name   string `gorm:"not null" json:"name"`
+	Icon   string `json:"icon"`
+	Color  string `json:"color"`
+	System bool   `gorm:"default:false" json:"system"` // System folders can't be deleted
+
+	// Relations
+	User User `json:"-"`
+}
+
+// UniboxEmailFolder joins emails to folders
+type UniboxEmailFolder struct {
+	gorm.Model
+	EmailID  uint `gorm:"not null;index" json:"email_id"`
+	FolderID uint `gorm:"not null;index" json:"folder_id"`
+
+	// Relations
+	Email  UniboxEmail  `json:"-"`
+	Folder UniboxFolder `json:"-"`
+}
+
 // WarmupSchedule represents structured warmup configuration
 type WarmupSchedule struct {
 	gorm.Model
@@ -444,11 +495,15 @@ type LeadList struct {
 
 	// Relations
 	LeadListMemberships []LeadListMembership `gorm:"foreignKey:LeadListID" json:"memberships,omitempty"`
+	Leads               []Lead               `gorm:"foreignKey:LeadListID" json:"leads"`
 }
 
 // Lead represents a single contact/lead
 type Lead struct {
 	gorm.Model
+	// Foreign key to LeadList - REQUIRED for creation
+	LeadListID uint `gorm:"not null;index" json:"lead_list_id"` // Ensures lead belongs to a list
+
 	Email     string `gorm:"not null;index" json:"email"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
@@ -473,6 +528,7 @@ type Lead struct {
 	LeadTags            []LeadTag            `gorm:"foreignKey:LeadID" json:"tags,omitempty"`
 	CustomFields        []LeadCustomField    `gorm:"foreignKey:LeadID" json:"custom_fields,omitempty"`
 	Activities          []LeadActivity       `gorm:"foreignKey:LeadID" json:"activities,omitempty"`
+	LeadList            LeadList             `gorm:"foreignKey:LeadListID" json:"lead_list"`
 }
 
 // LeadListMembership joins leads to lists

@@ -42,6 +42,10 @@ func main() {
 	defer cancel()
 	go warmupWorker.Start(ctx)
 
+	// Add this after the warmup worker initialization
+	uniboxWorker := worker.NewUniboxWorker(config.DB, log.New(os.Stdout, "UNIBOX: ", log.LstdFlags))
+	go uniboxWorker.Start(ctx)
+
 	// Setup routes
 	routes.SetupRoutes(app, config.DB)
 
