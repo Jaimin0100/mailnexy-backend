@@ -23,7 +23,7 @@ func (cc *CampaignController) CreateCampaign(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&input); err != nil {
-		cc.Logger.Printf("Error parsing request body: %v", err, c.Body())
+		cc.Logger.Printf("Error parsing request body: %v, body: %s", err, c.Body())
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "Invalid request body",
 			"details": err.Error(),
