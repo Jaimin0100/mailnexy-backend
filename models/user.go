@@ -594,6 +594,13 @@ type ClickEvent struct {
 	Count      int       `gorm:"default:1" json:"count"`
 }
 
+// In your models package
+type CampaignSender struct {
+    gorm.Model
+    CampaignID uint `gorm:"index"`
+    SenderID   uint `gorm:"index"`
+}
+
 // LeadActivity tracks all activities for a lead across campaigns
 type LeadActivity struct {
 	gorm.Model

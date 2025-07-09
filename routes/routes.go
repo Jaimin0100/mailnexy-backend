@@ -122,11 +122,18 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	campaign.Get("/:id/stats", campaignController.GetCampaignStats)
 	campaign.Delete("/:id", campaignController.DeleteCampaign)
 	campaign.Post("/webhook", campaignController.HandleCampaignWebhook)
+	// routes.go
+	campaign.Put("/:id/lead-lists", campaignController.UpdateCampaignLeadLists)
+	// routes.go - Add these to your existing routes
+	campaign.Put("/:id/settings", campaignController.UpdateCampaignSettings)
+	campaign.Get("/:id/tracking-stats", campaignController.GetTrackingStats)
 
 	// WebSocket route for campaign progress
 	app.Get("/api/v1/campaigns/progress", websocket.New(func(c *websocket.Conn) {
 		controller.HandleCampaignProgressWS(c)
 	}))
+	app.Get("/track/open/:messageID/:token", campaignController.HandleOpenTracking)
+	app.Get("/track/click/:messageID/:token", campaignController.HandleClickTracking)
 
 	// Lead routes
 	lead := api.Group("/leads")
@@ -148,6 +155,7 @@ func SetupAPIRoutes(app *fiber.App, db *gorm.DB) {
 	leadList.Post("/:id/add-leads", leadController.AddLeadsToList)
 	leadList.Post("/:id/remove-leads", leadController.RemoveLeadsFromList)
 	leadList.Get("/:id/leads", leadController.GetLeadListMembers)
+	
 
 	// Start the sender counter reset goroutine
 	campaignSender := utils.NewCampaignSender(db, log.New(os.Stdout, "SENDER: ", log.LstdFlags))
